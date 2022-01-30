@@ -1820,3 +1820,16 @@
 34	72	6649828214319565	bootloader/bootloader.bin	a7dc684fa50e0fdd
 34	72	6649828214319565	bootloader/bootloader.map	a7dc684fa50e0fdd
 72	22091	0	CMakeFiles/flash	f269a2a23fa8d7eb
+32	71	6649828214319565	bootloader-prefix/src/bootloader-stamp/bootloader-build	a7dc684fa50e0fdd
+32	71	6649828214319565	bootloader/bootloader.elf	a7dc684fa50e0fdd
+32	71	6649828214319565	bootloader/bootloader.bin	a7dc684fa50e0fdd
+32	71	6649828214319565	bootloader/bootloader.map	a7dc684fa50e0fdd
+34	70	6649828214319565	bootloader-prefix/src/bootloader-stamp/bootloader-build	a7dc684fa50e0fdd
+34	70	6649828214319565	bootloader/bootloader.elf	a7dc684fa50e0fdd
+34	70	6649828214319565	bootloader/bootloader.bin	a7dc684fa50e0fdd
+34	70	6649828214319565	bootloader/bootloader.map	a7dc684fa50e0fdd
+37	587	6652739817431682	esp-idf/main/CMakeFiles/__idf_main.dir/station_example_main.c.obj	4491a0a9dd0a3d0b
+591	633	6652739818041807	esp-idf/main/libmain.a	5d823961f74c046c
+634	1889	6652739830474689	esp-idf/esp32/ld/esp32.project.ld	c488ea3909f9480c
+1891	4519	6652739856676633	wifi_station.elf	46dbc2bb900c7035
+4519	4723	6652739858942144	.bin_timestamp	f72a9b6a35e7f19d

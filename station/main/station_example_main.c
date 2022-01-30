@@ -205,6 +205,8 @@ int HTTP_req(int argc, char **argv)
 	}
 	const char *URL = HTTPArgs.URL->sval[0];
 	char *site, *body;
+	site = (char *)calloc(strlen(URL) + 1, sizeof(char));
+	strcpy(site, URL);
 	splitAddress(&site, &body);
 	char *fullReq = (char *)calloc(strlen(REQ_START) + strlen(body) + strlen(site)  + 10, sizeof(char));
 	strcpy(fullReq, "GET /");
@@ -297,6 +299,7 @@ int HTTP_req(int argc, char **argv)
 		free(fullReq);
 		return 0;
 	}
+	return 1;
 }
 
 static void initConsole(void)
@@ -354,8 +357,6 @@ static void initConsole(void)
 
 void worker(void *pvParams)
 {
-	char *address;
-	char *resource;
 	char *input;
 	printf("Please, print \"help\" to view the command list\n");
 	int ret;
