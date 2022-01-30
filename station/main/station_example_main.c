@@ -309,11 +309,13 @@ static void initConsole(void)
 
 	esp_console_cmd_t wifiCmd = {
 		.command = "wifi",
-		.help = "wifi <SSID> <Password>\nConnects to a WiFi AP",
+		.help = "Connects to a WiFi AP",
 		.hint = NULL,
 		.func = &wifi_init_sta,
 		.argtable = &wifiArgs,
 	};
+	wifiArgs.SSID = arg_str1(NULL, NULL, "<s>", "SSID of the AP");
+	wifiArgs.password = arg_str0(NULL, NULL, "<s>", "Password");
 	ESP_ERROR_CHECK(esp_console_cmd_register(&wifiCmd));
 	linenoiseSetCompletionCallback(&esp_console_get_completion);
 	linenoiseSetHintsCallback((linenoiseHintsCallback*) &esp_console_get_hint);
