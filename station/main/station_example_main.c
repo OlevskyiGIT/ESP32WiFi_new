@@ -208,12 +208,28 @@ int HTTP_req(int argc, char **argv)
 	site = (char *)calloc(strlen(URL) + 1, sizeof(char));
 	strcpy(site, URL);
 	splitAddress(&site, &body);
-	char *fullReq = (char *)calloc(strlen(REQ_START) + strlen(body) + strlen(site)  + 10, sizeof(char));
-	strcpy(fullReq, "GET /");
-	strcat(fullReq, body);
-	strcat(fullReq, REQ_START);
-	strcat(fullReq, site);
-	strcat(fullReq, "\r\n\r\n");
+	char *fullReq;
+	if(!strcmp(HTTPArgs.getpost->sval[0], "GET"))
+	{
+		fullReq = (char *)calloc(strlen(REQ_START) + strlen(body) + strlen(site)  + 10, sizeof(char));
+		strcpy(fullReq, "GET /");
+		strcat(fullReq, body);
+		strcat(fullReq, REQ_START);
+		strcat(fullReq, site);
+		strcat(fullReq, "\r\n\r\n");
+	}else if(!strcmp(HTTPArgs.getpost->sval[0], "POST")){
+		fullReq = (char *)calloc(strlen(REQ_START) + strlen(body) + strlen(site) + strlen(HTTPArgs.body->sval[0])  + 15, sizeof(char));
+		strcpy(fullReq, "POST /");
+		strcat(fullReq, body);
+		strcat(fullReq, REQ_START);
+		strcat(fullReq, site);
+		strcat(fullReq, "\r\n\r\n");
+		strcat(fullReq, HTTPArgs.body->sval[0]);
+		strcat(fullReq, "\r\n\r\n");
+	}else{
+		ESP_LOGE(TAG, "Incorrect argument in 1st position!");
+		return 1;
+	}
 	ESP_LOGI(TAG, "Sending following request:\n%s\n", fullReq);
 	const struct addrinfo hints = {
 		.ai_family = AF_INET,
