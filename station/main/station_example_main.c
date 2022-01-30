@@ -77,8 +77,21 @@ static void event_handler(void* arg, esp_event_base_t event_base,
     }
 }
 
-void wifi_init_sta(char *SSID, char *password)
+static struct {
+	struct arg_str *SSID;
+	struct arg_str *password;
+	struct arg_end *end;
+} wifiArgs;
+
+int wifi_init_sta(int argc, char **argv)
 {
+	if(arg_parse(argc, argv, (void **)&wifiArgs))
+	{
+		arg_print_errors(stderr, wifiArgs.end, argv[0]);
+		return 1;
+	}
+	const char *SSID = wifiArgs.SSID->sval[0];
+	const char *password = wifiArgs.password->sval[1];
     s_wifi_event_group = xEventGroupCreate();
 
     ESP_ERROR_CHECK(esp_netif_init());
@@ -144,6 +157,7 @@ void wifi_init_sta(char *SSID, char *password)
     ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
     ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
     vEventGroupDelete(s_wifi_event_group);
+    return 0;
 }
 
 void HTTP_req(char *site, char *body)
@@ -286,19 +300,31 @@ static void initConsole(void)
 	esp_vfs_dev_uart_use_driver(CONFIG_ESP_CONSOLE_UART_NUM);
 	linenoiseSetMultiLine(true);
 	linenoiseAllowEmpty(false);
+
+	esp_console_config_t  console_config = {
+		.max_cmdline_args = 4,
+		.max_cmdline_length = 256,
+	};
+	ESP_ERROR_CHECK(esp_console_init(&console_config));
+
+	esp_console_cmd_t wifiCmd = {
+		.command = "wifi",
+		.help = "wifi <SSID> <Password>\nConnects to a WiFi AP",
+		.hint = NULL,
+		.func = &wifi_init_sta,
+		.argtable = &wifiArgs,
+	};
+	ESP_ERROR_CHECK(esp_console_cmd_register(&wifiCmd));
+	linenoiseSetCompletionCallback(&esp_console_get_completion);
+	linenoiseSetHintsCallback((linenoiseHintsCallback*) &esp_console_get_hint);
 }
 
 void worker(void *pvParams)
 {
 	char *address;
 	char *resource;
-	char *SSID;
-	char *password;
-	ESP_LOGI(TAG, "Please, enter the SSID\n");
-	SSID = linenoise("");
-	ESP_LOGI(TAG, "Please, enter the password\n");
-	password = linenoise("");
-	wifi_init_sta(SSID, password);
+	printf("Please, print \"help\" to view the command list\n");
+	//wifi_init_sta(SSID, password);
 	while(1)
 	{
 		ESP_LOGI(TAG, "Please, enter the server address\n");
