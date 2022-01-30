@@ -1,0 +1,1 @@
+cmd='C:/Users/Tigozawr/.espressif/tools/cmake/3.16.4/bin/cmake.exe;-DSDKCONFIG=D:/Documents/ESP32_hobby/WiFi/station/sdkconfig;-DIDF_PATH=D:/esp-idf;-DIDF_TARGET=esp32;-DPYTHON_DEPS_CHECKED=1;-DPYTHON=python;-DEXTRA_COMPONENT_DIRS=D:/esp-idf/components/bootloader;-DLEGACY_INCLUDE_COMMON_HEADERS=;-GNinja;<SOURCE_DIR><SOURCE_SUBDIR>'
