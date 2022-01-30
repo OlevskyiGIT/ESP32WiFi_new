@@ -348,7 +348,7 @@ static void initConsole(void)
 	HTTPArgs.getpost = arg_str1(NULL, NULL, "<s>", "GET or POST command");
 	HTTPArgs.URL = arg_str1(NULL, NULL, "<s>", "Full site URL (without http://)");
 	HTTPArgs.body = arg_str0(NULL, NULL, "<s>", "POST request body");
-	wifiArgs.end = arg_end(2);
+	HTTPArgs.end = arg_end(2);
 	ESP_ERROR_CHECK(esp_console_cmd_register(&HTTPCmd));
 	ESP_ERROR_CHECK(esp_console_register_help_command());
 	linenoiseSetCompletionCallback(&esp_console_get_completion);
