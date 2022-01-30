@@ -58,10 +58,8 @@ static int s_retry_num = 0;
 static void event_handler(void* arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data)
 {
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-        esp_wifi_connect();
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        if (s_retry_num < MAX_RETRY) {
             esp_wifi_connect();
             s_retry_num++;
             ESP_LOGI(TAG, "retry to connect to the AP");
@@ -75,6 +73,20 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
+}
+
+void wifi_start(void)
+{
+	s_wifi_event_group = xEventGroupCreate();
+
+	ESP_ERROR_CHECK(esp_netif_init());
+
+	ESP_ERROR_CHECK(esp_event_loop_create_default());
+	esp_netif_create_default_wifi_sta();
+
+	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+	ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+	ESP_ERROR_CHECK(esp_wifi_start());
 }
 
 static struct {
@@ -92,29 +104,18 @@ int wifi_init_sta(int argc, char **argv)
 	}
 	const char *SSID = wifiArgs.SSID->sval[0];
 	const char *password = wifiArgs.password->sval[0];
-    s_wifi_event_group = xEventGroupCreate();
-
-    ESP_ERROR_CHECK(esp_netif_init());
-
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    esp_netif_create_default_wifi_sta();
-
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-    esp_event_handler_instance_t instance_any_id;
-    esp_event_handler_instance_t instance_got_ip;
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
-                                                        ESP_EVENT_ANY_ID,
-                                                        &event_handler,
-                                                        NULL,
-                                                        &instance_any_id));
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
-                                                        IP_EVENT_STA_GOT_IP,
-                                                        &event_handler,
-                                                        NULL,
-                                                        &instance_got_ip));
-
+	esp_event_handler_instance_t instance_any_id;
+	esp_event_handler_instance_t instance_got_ip;
+	ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
+														ESP_EVENT_ANY_ID,
+														&event_handler,
+														NULL,
+														&instance_any_id));
+	ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
+														IP_EVENT_STA_GOT_IP,
+														&event_handler,
+														NULL,
+														&instance_got_ip));
     wifi_config_t wifi_config = {
         .sta = {
 	     .threshold.authmode = WIFI_AUTH_WPA2_PSK,
@@ -128,8 +129,10 @@ int wifi_init_sta(int argc, char **argv)
     strcpy((char *)wifi_config.sta.ssid, SSID);
     strcpy((char *)wifi_config.sta.password, password);
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
-    ESP_ERROR_CHECK(esp_wifi_start() );
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+    s_retry_num = 0;
+
+    esp_wifi_connect();
 
     ESP_LOGI(TAG, "wifi_init_sta finished.");
 
@@ -153,10 +156,10 @@ int wifi_init_sta(int argc, char **argv)
         ESP_LOGE(TAG, "UNEXPECTED EVENT");
     }
 
+	xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT|WIFI_FAIL_BIT);
     /* The event will not be processed after unregister */
     ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
     ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
-    vEventGroupDelete(s_wifi_event_group);
     return 0;
 }
 
@@ -184,8 +187,6 @@ void splitAddress(char **address, char **resource)
 	}else{
 		*resource = (char *)calloc(1, sizeof(char));
 	}
-	ESP_LOGI(TAG, "Server: %s", *address);
-	ESP_LOGI(TAG, "Resource: %s", *resource);
 }
 
 static struct
@@ -337,7 +338,7 @@ static void initConsole(void)
 	linenoiseAllowEmpty(false);
 
 	esp_console_config_t  console_config = {
-		.max_cmdline_args = 4,
+		.max_cmdline_args = 5,
 		.max_cmdline_length = 256,
 	};
 	ESP_ERROR_CHECK(esp_console_init(&console_config));
@@ -349,8 +350,8 @@ static void initConsole(void)
 		.func = &wifi_init_sta,
 		.argtable = &wifiArgs,
 	};
-	wifiArgs.SSID = arg_str1(NULL, NULL, "<s>", "SSID of the AP");
-	wifiArgs.password = arg_str0(NULL, NULL, "<s>", "Password");
+	wifiArgs.SSID = arg_str1(NULL, NULL, "<SSID>", "SSID of the AP");
+	wifiArgs.password = arg_str0(NULL, NULL, "<password>", "Password");
 	wifiArgs.end = arg_end(2);
 	ESP_ERROR_CHECK(esp_console_cmd_register(&wifiCmd));
 	//HTTP request command
@@ -361,10 +362,10 @@ static void initConsole(void)
 		.func = &HTTP_req,
 		.argtable = &HTTPArgs,
 	};
-	HTTPArgs.getpost = arg_str1(NULL, NULL, "<s>", "GET or POST command");
-	HTTPArgs.URL = arg_str1(NULL, NULL, "<s>", "Full site URL (without http://)");
-	HTTPArgs.body = arg_str0(NULL, NULL, "<s>", "POST request body");
-	HTTPArgs.end = arg_end(2);
+	HTTPArgs.getpost = arg_str1(NULL, NULL, "<GET/POST>", "GET or POST command");
+	HTTPArgs.URL = arg_str1(NULL, NULL, "<URL>", "Full site URL (without http://)");
+	HTTPArgs.body = arg_str0(NULL, NULL, "<body>", "POST request body");
+	HTTPArgs.end = arg_end(3);
 	ESP_ERROR_CHECK(esp_console_cmd_register(&HTTPCmd));
 	ESP_ERROR_CHECK(esp_console_register_help_command());
 	linenoiseSetCompletionCallback(&esp_console_get_completion);
@@ -398,6 +399,8 @@ void app_main(void)
       ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+
+    wifi_start();
 
 	initConsole();
 
