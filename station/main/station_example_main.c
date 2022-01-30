@@ -160,8 +160,52 @@ int wifi_init_sta(int argc, char **argv)
     return 0;
 }
 
-void HTTP_req(char *site, char *body)
+void splitAddress(char **address, char **resource)
 {
+	long unsigned int i;
+	*resource = NULL;
+	for(i = 0; i < strlen(*address); i++)
+	{
+		if((*address)[i] == '/')
+		{
+			break;
+		}
+	}
+	if(i < strlen(*address) - 1)
+	{
+		int len = strlen(*address);
+		(*address)[i] = '\0';
+		*resource = (char *)calloc(len - i + 1, sizeof(char));
+		for(long unsigned int j = i + 1; j < len; j++)
+		{
+			(*resource)[j - i - 1] = (*address)[j];
+		}
+		*address = (char *)realloc(*address, (i + 1)*sizeof(char));
+	}else{
+		*resource = (char *)calloc(1, sizeof(char));
+	}
+	ESP_LOGI(TAG, "Server: %s", *address);
+	ESP_LOGI(TAG, "Resource: %s", *resource);
+}
+
+static struct
+{
+	struct arg_str *getpost;
+	struct arg_str *URL;
+	struct arg_str *body;
+	struct arg_end *end;
+}HTTPArgs;
+
+int HTTP_req(int argc, char **argv)
+{
+	if(arg_parse(argc, argv, (void **)&HTTPArgs))
+	{
+		arg_print_errors(stderr, wifiArgs.end, argv[0]);
+		return 1;
+	}
+	const char *URL = HTTPArgs.URL->sval[0];
+	char *site, *body;
+	splitAddress(&site, &body);
 	char *fullReq = (char *)calloc(strlen(REQ_START) + strlen(body) + strlen(site)  + 10, sizeof(char));
 	strcpy(fullReq, "GET /");
 	strcat(fullReq, body);
@@ -251,36 +295,8 @@ void HTTP_req(char *site, char *body)
 		ESP_LOGI(TAG, "... done reading from socket. Last read return=%d errno=%d.", r, errno);
 		close(s);
 		free(fullReq);
-		return;
+		return 0;
 	}
-}
-
-void splitAddress(char **address, char **resource)
-{
-	long unsigned int i;
-	*resource = NULL;
-	for(i = 0; i < strlen(*address); i++)
-	{
-		if((*address)[i] == '/')
-		{
-			break;
-		}
-	}
-	if(i < strlen(*address) - 1)
-	{
-		int len = strlen(*address);
-		(*address)[i] = '\0';
-		*resource = (char *)calloc(len - i + 1, sizeof(char));
-		for(long unsigned int j = i + 1; j < len; j++)
-		{
-			(*resource)[j - i - 1] = (*address)[j];
-		}
-		*address = (char *)realloc(*address, (i + 1)*sizeof(char));
-	}else{
-		*resource = (char *)calloc(1, sizeof(char));
-	}
-	ESP_LOGI(TAG, "Server: %s", *address);
-	ESP_LOGI(TAG, "Resource: %s", *resource);
 }
 
 static void initConsole(void)
@@ -306,7 +322,7 @@ static void initConsole(void)
 		.max_cmdline_length = 256,
 	};
 	ESP_ERROR_CHECK(esp_console_init(&console_config));
-
+	//WiFi command
 	esp_console_cmd_t wifiCmd = {
 		.command = "wifi",
 		.help = "Connects to a WiFi AP",
@@ -318,6 +334,19 @@ static void initConsole(void)
 	wifiArgs.password = arg_str0(NULL, NULL, "<s>", "Password");
 	wifiArgs.end = arg_end(2);
 	ESP_ERROR_CHECK(esp_console_cmd_register(&wifiCmd));
+	//HTTP request command
+	esp_console_cmd_t HTTPCmd = {
+		.command = "http",
+		.help = "GETs or POSTs an http request",
+		.hint = NULL,
+		.func = &HTTP_req,
+		.argtable = &HTTPArgs,
+	};
+	HTTPArgs.getpost = arg_str1(NULL, NULL, "<s>", "GET or POST command");
+	HTTPArgs.URL = arg_str1(NULL, NULL, "<s>", "Full site URL (without http://)");
+	HTTPArgs.body = arg_str0(NULL, NULL, "<s>", "POST request body");
+	wifiArgs.end = arg_end(2);
+	ESP_ERROR_CHECK(esp_console_cmd_register(&HTTPCmd));
 	ESP_ERROR_CHECK(esp_console_register_help_command());
 	linenoiseSetCompletionCallback(&esp_console_get_completion);
 	linenoiseSetHintsCallback((linenoiseHintsCallback*) &esp_console_get_hint);
@@ -329,7 +358,6 @@ void worker(void *pvParams)
 	char *resource;
 	char *input;
 	printf("Please, print \"help\" to view the command list\n");
-	//wifi_init_sta(SSID, password);
 	int ret;
 	esp_err_t err;
 	while(1)
@@ -341,16 +369,6 @@ void worker(void *pvParams)
 		{
 			ESP_LOGE(TAG, "Unrecognised command");
 		}
-	}
-	while(1)
-	{
-		ESP_LOGI(TAG, "Please, enter the server address\n");
-		address = linenoise("");
-		if(address == NULL) continue;
-		splitAddress(&address, &resource);
-		HTTP_req(address, resource);
-		linenoiseFree(address);
-		free(resource);
 	}
 }
 
