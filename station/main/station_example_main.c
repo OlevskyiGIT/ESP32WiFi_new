@@ -91,7 +91,7 @@ int wifi_init_sta(int argc, char **argv)
 		return 1;
 	}
 	const char *SSID = wifiArgs.SSID->sval[0];
-	const char *password = wifiArgs.password->sval[1];
+	const char *password = wifiArgs.password->sval[0];
     s_wifi_event_group = xEventGroupCreate();
 
     ESP_ERROR_CHECK(esp_netif_init());
@@ -316,7 +316,9 @@ static void initConsole(void)
 	};
 	wifiArgs.SSID = arg_str1(NULL, NULL, "<s>", "SSID of the AP");
 	wifiArgs.password = arg_str0(NULL, NULL, "<s>", "Password");
+	wifiArgs.end = arg_end(2);
 	ESP_ERROR_CHECK(esp_console_cmd_register(&wifiCmd));
+	ESP_ERROR_CHECK(esp_console_register_help_command());
 	linenoiseSetCompletionCallback(&esp_console_get_completion);
 	linenoiseSetHintsCallback((linenoiseHintsCallback*) &esp_console_get_hint);
 }
@@ -325,8 +327,21 @@ void worker(void *pvParams)
 {
 	char *address;
 	char *resource;
+	char *input;
 	printf("Please, print \"help\" to view the command list\n");
 	//wifi_init_sta(SSID, password);
+	int ret;
+	esp_err_t err;
+	while(1)
+	{
+		input = linenoise("> ");
+		if(input == NULL) continue;
+		err = esp_console_run(input, &ret);
+		if(err == ESP_ERR_NOT_FOUND)
+		{
+			ESP_LOGE(TAG, "Unrecognised command");
+		}
+	}
 	while(1)
 	{
 		ESP_LOGI(TAG, "Please, enter the server address\n");
